@@ -64,6 +64,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Install Protoc
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y protobuf-compiler
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install protobuf
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+            choco install protoc
+          fi
+
       - name: Install cross-compilation tools (Linux)
         if: matrix.settings.host == 'ubuntu-latest'
         run: |
