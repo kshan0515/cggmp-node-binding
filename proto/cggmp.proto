@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package cggmp.v1;
+
+service CggmpNode {
+  rpc Session(stream Envelope) returns (stream Envelope);
+}
+
+message Envelope {
+  uint32 version = 1;
+  string session_id = 2;
+  string execution_id = 3;
+  Round round = 4;
+  uint32 from_party = 5;
+  repeated uint32 to_parties = 6;
+  Meta meta = 7;
+  oneof payload {
+    AuxInfo aux_info = 10;
+    Keygen keygen = 11;
+    Signing signing = 12;
+    Presignature presignature = 13;
+    Error error = 14;
+    Status status = 15;
+  }
+}
+
+message Meta {
+  Curve curve = 1;
+  uint32 threshold = 2;
+  uint32 parties_count = 3;
+  uint32 party_index = 4;
+  bytes tx_context = 5;
+  uint32 retry = 6;
+  string payload_format = 7; // "bincode" (default) or "json" (debug only)
+  string key_id = 8;
+}
+
+enum Curve {
+  CURVE_UNSPECIFIED = 0;
+  CURVE_SECP256K1 = 1;
+  CURVE_SECP256R1 = 2;
+  CURVE_STARK = 3;
+}
+
+enum Round {
+  ROUND_UNSPECIFIED = 0;
+  AUX_INFO = 1;
+  KEYGEN = 2;
+  SIGNING = 3;
+  PRESIGNATURE = 4;
+  ERROR = 9;
+}
+
+// payload는 기본 bincode 직렬화 결과를 base64로 전달하며, 디버그 시(`CGGMP_PAYLOAD_FORMAT=json`) JSON 직렬화를 사용할 수 있습니다.
+message AuxInfo { bytes payload = 1; }
+// 동일한 직렬화 규칙 적용
+message Keygen { bytes payload = 1; }
+message Signing {
+  bytes payload = 1; // Msg serialize (prost bytes)
+  bytes tx_context = 2; // required; raw digest/digest hash
+}
+message Presignature {
+  bytes payload = 1; // Msg serialize (prost bytes)
+}
+
+message Error {
+  uint32 code = 1;
+  string message = 2;
+  bool retriable = 3;
+}
+
+message Status {
+  uint32 code = 1; // 200: OK (with data), 201: Finished
+  string message = 2; // JSON encoded data (publicKey, etc.) or status string
+  string status = 3; // "keygen_finished", "aux_gen_finished", etc.
+}

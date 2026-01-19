@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+target/
+*.node
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Test coverage
+coverage/
+
+# npm
+npm/
+*.tgz
