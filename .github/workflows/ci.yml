@@ -155,6 +155,9 @@ jobs:
         with:
           path: artifacts
 
+      - name: Create npm directory
+        run: mkdir -p npm
+
       - name: Move artifacts
         run: pnpm artifacts
 
