@@ -4,7 +4,7 @@ const { join } = require('path')
 const { platform, arch } = process
 
 let nativeBinding = null
-let localBind = join(__dirname, 'cggmp-node.node')
+let localBind = join(__dirname, 'cggmp-node-binding.node')
 
 if (existsSync(localBind)) {
   nativeBinding = require(localBind)
