@@ -27,7 +27,7 @@ yarn add @kshan0515/cggmp-node-binding
 | Platform | Architecture |
 |----------|-------------|
 | macOS | x64, arm64 (Apple Silicon) |
-| Linux | x64 (glibc, musl), arm64 (glibc, musl) |
+| Linux | x64 (glibc, musl), arm64 (glibc) |
 | Windows | x64 |
 
 ## Usage
