@@ -155,14 +155,8 @@ jobs:
         with:
           path: artifacts
 
-      - name: Create npm directory
-        run: |
-          mkdir -p npm/darwin-x64
-          mkdir -p npm/darwin-arm64
-          mkdir -p npm/linux-x64-gnu
-          mkdir -p npm/linux-x64-musl
-          mkdir -p npm/linux-arm64-gnu
-          mkdir -p npm/win32-x64-msvc
+      - name: Create npm dirs
+        run: npx napi create-npm-dirs
 
       - name: Move artifacts
         run: pnpm artifacts
