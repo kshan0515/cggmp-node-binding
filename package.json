@@ -1,6 +1,6 @@
 {
   "name": "@kshan0515/cggmp-node-binding",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Node.js native binding for CGGMP24 MPC ECDSA protocol - Distributed key generation and threshold signing",
   "main": "index.js",
   "types": "index.d.ts",

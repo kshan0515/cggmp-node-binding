@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3] - 2026-01-20
+
+### Fixed
+- Removed redundant artifact renaming step in CI test job. The build artifact is already correctly named `cggmp-node-binding.linux-x64-gnu.node`, so `mv` was failing.
+
 ## [0.1.2] - 2026-01-20
 
 ### Fixed
