@@ -122,7 +122,7 @@ jobs:
           path: .
 
       - name: Rename artifact for test
-        run: mv *.node cggmp-node-binding.node
+        run: mv *.node cggmp-node-binding.linux-x64-gnu.node
 
       - name: Run tests
         run: pnpm test
