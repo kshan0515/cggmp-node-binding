@@ -6,7 +6,7 @@
   "types": "index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/anthropics/cggmp-node-binding"
+    "url": "https://github.com/kshan0515/cggmp-node-binding"
   },
   "keywords": [
     "mpc",
