@@ -1,5 +1,8 @@
 # cggmp-node-binding
 
+[![CI](https://github.com/kshan0515/cggmp-node-binding/actions/workflows/ci.yml/badge.svg)](https://github.com/kshan0515/cggmp-node-binding/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@kshan0515/cggmp-node-binding)](https://www.npmjs.com/package/@kshan0515/cggmp-node-binding)
+
 Node.js native binding for **CGGMP24 MPC ECDSA protocol** - Distributed key generation and threshold signing without exposing private keys.
 
 Based on [cggmp21](https://github.com/LFDT-Lockness/cggmp21) Rust implementation.
