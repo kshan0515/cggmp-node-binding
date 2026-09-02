@@ -15,11 +15,11 @@ This project is a Node.js native binding for the **CGGMP24 MPC ECDSA protocol**,
 
 ## Directory Structure
 - `src/`: Source code
-    - `lib.rs`: Main Rust entry point. Defines the `CggmpExecutor` class and `napi` exports. Manages protocol state machines.
+    - `lib.rs`: Main Rust entry point. Defines the `CggmpExecutor` class and `napi` exports. Manages protocol state machines (Keygen, AuxGen, Signing).
     - `index.ts`: TypeScript entry point. Handles loading the native module (supports Jest mocking).
     - `proto/`: Protobuf generated files (implied).
 - `proto/`: Protocol Buffer definitions (`cggmp.proto`).
-- `__tests__/`: Jest unit and integration tests.
+- `__tests__/`: Jest unit and integration tests (`signing.integration.test.ts` for 2-of-3 threshold signing).
 - `index.js`: Native module loader (generated/managed by `napi`).
 - `build.rs`: Rust build script (likely for compiling Protobufs).
 
@@ -55,5 +55,6 @@ This project is a Node.js native binding for the **CGGMP24 MPC ECDSA protocol**,
 - **Hybrid Codebase:** The project mixes Rust and TypeScript. Rust handles the heavy cryptographic lifting and protocol state machines, while TypeScript provides the user-facing API.
 - **N-API:** All native interactions are mediated through `napi-rs`. The `CggmpExecutor` struct in Rust maps to the JavaScript class.
 - **State Machines:** The Rust implementation uses a state machine pattern (`ProtocolState` enum in `lib.rs`) to manage the asynchronous and multi-round nature of MPC protocols (Keygen, AuxGen, Signing).
+- **Subgroup Signing:** In threshold signing (e.g. $t$-of-$n$), local party indexes ($0 \dots t-1$) are mapped to global party indexes via `setSigners` and `drive_sm` recipient routing.
 - **Protobuf:** Messages exchanged between parties are serialized using Protobuf (`prost`).
 - **Testing:** Tests are written in TypeScript using Jest (`__tests__/*.test.ts`).

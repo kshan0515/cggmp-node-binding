@@ -67,6 +67,7 @@ enum ProtocolState {
     tx_context: Vec<u8>,
     _keyshare: Box<KeyShareWithLevel>,
     _signers: Vec<u16>,
+    _data: Box<dyn AnyDataToSign<Secp256k1> + Send + Sync>,
   },
 }
 
@@ -243,8 +244,9 @@ impl CggmpExecutor {
     let ks = self.keyshare.clone().ok_or_else(|| Error::new(Status::InvalidArg, "keyshare missing"))?;
     let tx = hex::decode(tx_hex).map_err(|e| Error::new(Status::InvalidArg, format!("invalid hex: {e}")))?;
     // 32바이트인 경우 이미 해시된 데이터로 처리, 아니면 SHA256으로 해싱
-    let data: Box<dyn AnyDataToSign<Secp256k1>> = if tx.len() == 32 {
-      Box::new(PrehashedDataToSign::from_scalar(generic_ec::Scalar::<Secp256k1>::from_be_bytes_mod_order(&tx)))
+    let data: Box<dyn AnyDataToSign<Secp256k1> + Send + Sync> = if tx.len() == 32 {
+      let scalar = generic_ec::Scalar::<Secp256k1>::from_be_bytes_mod_order(&tx);
+      Box::new(PrehashedDataToSign::from_scalar(scalar).insecure_assume_preimage_known())
     } else {
       Box::new(cggmp24::DataToSign::<Secp256k1>::digest::<sha2::Sha256>(&tx))
     };
@@ -253,8 +255,10 @@ impl CggmpExecutor {
     let eid = ExecutionId::new(derive_execution_seed(&self.session_id, &self.execution_id, "signing"));
     let ks_boxed = Box::new(ks);
     let my_idx = selected.iter().position(|&p| p == self.party_index).ok_or_else(|| Error::new(Status::InvalidArg, "not in signers"))? as u16;
-    let sm = cggmp24::signing(eid, my_idx, extend_ref(selected.as_slice()), extend_ref(&*ks_boxed)).sign_sync(extend_mut(&mut self.rng), extend_ref(&*data));
-    self.state = ProtocolState::Signing { sm: Box::new(sm), pending: Vec::new(), tx_context: tx, _keyshare: ks_boxed, _signers: selected };
+    let sm = cggmp24::signing(eid, my_idx, extend_ref(selected.as_slice()), extend_ref(&*ks_boxed))
+      .enforce_reliable_broadcast(false)
+      .sign_sync(extend_mut(&mut self.rng), extend_ref(&*data));
+    self.state = ProtocolState::Signing { sm: Box::new(sm), pending: Vec::new(), tx_context: tx, _keyshare: ks_boxed, _signers: selected, _data: data };
     self.phase = "SIGNING".to_string(); self.status = "running".to_string(); self.round = Round::Signing as u32; self.last_round = Some(Round::Signing);
     self.internal_round = "Round 1 (Partial Sign)".to_string(); // Initial round
     Ok(())
@@ -267,10 +271,22 @@ impl CggmpExecutor {
     // 1. 스레드 안전한 Vec<u8>로 변환 (NAPI Buffer는 스레드 이동 불가)
     let raw_inputs: Vec<Vec<u8>> = inputs.iter().map(|b| b.to_vec()).collect();
 
-    // 2. Phase 5: Rayon을 사용한 병렬 역직렬화
+    // 2. Rayon을 사용한 병렬 역직렬화 및 Envelope 지원
+    let my_party_index = self.party_index;
     match &mut self.state {
       ProtocolState::Keygen { pending, .. } => {
         let decoded_msgs: Vec<Incoming<KeygenMsg>> = raw_inputs.par_iter().filter_map(|buf| {
+          if let Ok(env) = Envelope::decode(buf.as_slice()) {
+            if let Some(Payload::Keygen(k)) = env.payload {
+              let is_broadcast = env.to_parties.is_empty();
+              if !is_broadcast && !env.to_parties.contains(&(my_party_index as u32)) {
+                return None;
+              }
+              let msg_type = if is_broadcast { MessageType::Broadcast } else { MessageType::P2P };
+              let msg: KeygenMsg = bincode::deserialize(&k.payload).ok()?;
+              return Some(Incoming { id: 0, sender: env.from_party as u16, msg_type, msg });
+            }
+          }
           if buf.len() < 5 { return None; }
           let from_party = u32::from_le_bytes(buf[0..4].try_into().unwrap()) as u16;
           let is_broadcast = buf[4] != 0;
@@ -282,6 +298,17 @@ impl CggmpExecutor {
       }
       ProtocolState::AuxGen { pending, .. } => {
         let decoded_msgs: Vec<Incoming<AuxGenMsg>> = raw_inputs.par_iter().filter_map(|buf| {
+          if let Ok(env) = Envelope::decode(buf.as_slice()) {
+            if let Some(Payload::AuxInfo(a)) = env.payload {
+              let is_broadcast = env.to_parties.is_empty();
+              if !is_broadcast && !env.to_parties.contains(&(my_party_index as u32)) {
+                return None;
+              }
+              let msg_type = if is_broadcast { MessageType::Broadcast } else { MessageType::P2P };
+              let msg: AuxGenMsg = bincode::deserialize(&a.payload).ok()?;
+              return Some(Incoming { id: 0, sender: env.from_party as u16, msg_type, msg });
+            }
+          }
           if buf.len() < 5 { return None; }
           let from_party = u32::from_le_bytes(buf[0..4].try_into().unwrap()) as u16;
           let is_broadcast = buf[4] != 0;
@@ -293,6 +320,18 @@ impl CggmpExecutor {
       }
       ProtocolState::Signing { pending, _signers, .. } => {
         let decoded_msgs: Vec<Incoming<SigningMsg>> = raw_inputs.par_iter().filter_map(|buf| {
+          if let Ok(env) = Envelope::decode(buf.as_slice()) {
+            if let Some(Payload::Signing(s)) = env.payload {
+              let is_broadcast = env.to_parties.is_empty();
+              if !is_broadcast && !env.to_parties.contains(&(my_party_index as u32)) {
+                return None;
+              }
+              let msg_type = if is_broadcast { MessageType::Broadcast } else { MessageType::P2P };
+              let msg: SigningMsg = bincode::deserialize(&s.payload).ok()?;
+              let sender = _signers.iter().position(|&s| s == (env.from_party as u16))? as u16;
+              return Some(Incoming { id: 0, sender, msg_type, msg });
+            }
+          }
           if buf.len() < 5 { return None; }
           let from_party_global = u32::from_le_bytes(buf[0..4].try_into().unwrap()) as u16;
           let is_broadcast = buf[4] != 0;
@@ -303,14 +342,16 @@ impl CggmpExecutor {
         }).collect();
         pending.extend(decoded_msgs);
       }
-      ProtocolState::None => { if !inputs.is_empty() { return Err(Error::new(Status::InvalidArg, "no protocol")); } }
+      ProtocolState::None => {
+        return Ok(Vec::new());
+      }
     }
 
     // 2. 상태 머신 구동 (메시지 소진 시까지 반복)
     let mut outgoing = Vec::new();
     match &mut self.state {
       ProtocolState::Keygen { sm, pending, .. } => {
-        let out = drive_sm(sm.as_mut(), pending, Round::Keygen as i32, &self.session_id, &self.execution_id, self.party_index, self.threshold, self.parties_count, &mut outgoing, &[], &mut self.meta_sent, &mut self.internal_round, |msg| {
+        let out = drive_sm(sm.as_mut(), pending, Round::Keygen as i32, &self.session_id, &self.execution_id, self.party_index, self.threshold, self.parties_count, None, &mut outgoing, &[], &mut self.meta_sent, &mut self.internal_round, |msg| {
             match msg {
                 keygen_msg::Msg::Round1(_) => "Round 1 (Commitment)".to_string(),
                 keygen_msg::Msg::Round2Broad(_) | keygen_msg::Msg::Round2Uni(_) => "Round 2 (VSS & Share)".to_string(),
@@ -325,7 +366,7 @@ impl CggmpExecutor {
         }
       }
       ProtocolState::AuxGen { sm, pending, .. } => {
-        let out = drive_sm(sm.as_mut(), pending, Round::AuxInfo as i32, &self.session_id, &self.execution_id, self.party_index, self.threshold, self.parties_count, &mut outgoing, &[], &mut self.meta_sent, &mut self.internal_round, |msg| {
+        let out = drive_sm(sm.as_mut(), pending, Round::AuxInfo as i32, &self.session_id, &self.execution_id, self.party_index, self.threshold, self.parties_count, None, &mut outgoing, &[], &mut self.meta_sent, &mut self.internal_round, |msg| {
             match msg {
                 cggmp24::key_refresh::msg::Msg::Round1(_) => "Round 1 (Paillier Gen)".to_string(),
                 cggmp24::key_refresh::msg::Msg::Round2(_) => "Round 2 (ZKP Verify)".to_string(),
@@ -339,8 +380,8 @@ impl CggmpExecutor {
           self.internal_round = "Finished".to_string();
         }
       }
-      ProtocolState::Signing { sm, pending, tx_context, .. } => {
-        let out = drive_sm(sm.as_mut(), pending, Round::Signing as i32, &self.session_id, &self.execution_id, self.party_index, self.threshold, self.parties_count, &mut outgoing, tx_context, &mut self.meta_sent, &mut self.internal_round, |msg| {
+      ProtocolState::Signing { sm, pending, tx_context, _signers, .. } => {
+        let out = drive_sm(sm.as_mut(), pending, Round::Signing as i32, &self.session_id, &self.execution_id, self.party_index, self.threshold, self.parties_count, Some(_signers.as_slice()), &mut outgoing, tx_context, &mut self.meta_sent, &mut self.internal_round, |msg| {
             match msg {
                 cggmp24::signing::msg::Msg::Round1a(_) | cggmp24::signing::msg::Msg::Round1b(_) => "Round 1 (Partial Sign)".to_string(),
                 cggmp24::signing::msg::Msg::Round2(_) => "Round 2 (Verify)".to_string(),
@@ -355,7 +396,6 @@ impl CggmpExecutor {
           self.meta_sent = true;
           self.status = "signing_finished".to_string(); self.state = ProtocolState::None;
           self.last_signature = Some(serde_json::to_string(&sig).unwrap());
-          self.internal_round = "Finished".to_string();
         }
       }
       ProtocolState::None => {}
@@ -427,6 +467,7 @@ fn drive_sm<M, O, F>(
     pending: &mut Vec<Incoming<M>>,
     round: i32,
     sid: &str, eid: &str, from: u16, t: u16, n: u16,
+    signers: Option<&[u16]>,
     outgoing: &mut Vec<Envelope>,
     tx: &[u8],
     meta_sent: &mut bool,
@@ -440,7 +481,17 @@ where
   loop {
     match sm.proceed() {
       ProceedResult::SendMsg(out) => {
-        let to = match out.recipient { MessageDestination::AllParties => Vec::new(), MessageDestination::OneParty(i) => vec![i as u32] };
+        let to = match out.recipient {
+          MessageDestination::AllParties => Vec::new(),
+          MessageDestination::OneParty(i) => {
+            let global_party = if let Some(signers) = signers {
+              signers.get(i as usize).copied().unwrap_or(i)
+            } else {
+              i
+            };
+            vec![global_party as u32]
+          }
+        };
         *internal_round = get_round_name(&out.msg); // Update internal round
         outgoing.push(make_envelope(sid, eid, round, from, t, n, &to, encode_msg(&out.msg)?, tx, *meta_sent));
         *meta_sent = true;

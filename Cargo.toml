@@ -23,7 +23,7 @@ rand_dev = "0.1"
 sha2 = "0.10"
 round-based = { version = "0.4.1", features = ["sim"] }
 # CGGMP24 crates.io dependency
-cggmp24 = { version = "0.7.0-alpha.3", default-features = false, features = ["curve-secp256k1", "spof", "state-machine", "backend-num-bigint"] }
+cggmp24 = { version = "0.7.0-alpha.3", default-features = false, features = ["curve-secp256k1", "spof", "state-machine", "backend-num-bigint", "insecure-assume-preimage-known"] }
 cggmp24-keygen = { version = "0.7.0-alpha.3", default-features = false, features = ["state-machine"] }
 prost = { version = "0.13", default-features = false, features = ["prost-derive"] }
 base64 = "0.22"

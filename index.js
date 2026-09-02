@@ -250,6 +250,7 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { CggmpExecutor } = nativeBinding
+const { CggmpExecutor, generatePrimes } = nativeBinding
 
 module.exports.CggmpExecutor = CggmpExecutor
+module.exports.generatePrimes = generatePrimes

@@ -10,6 +10,7 @@ const native = isJest ? require('cggmp-native') : require('../index.js');
 
 export const {
   CggmpExecutor,
+  generatePrimes,
   process_session,
   aux_info_gen,
   keygen,
