@@ -35,13 +35,16 @@
       "x86_64-pc-windows-msvc"
     ]
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "artifacts": "napi artifacts",
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
     "postbuild": "node -e \"require('fs').copyFileSync('index.d.copy.ts', 'index.d.ts')\"",
     "postbuild:debug": "node -e \"require('fs').copyFileSync('index.d.copy.ts', 'index.d.ts')\"",
-    "prepublishOnly": "napi prepublish -t npm",
+    "prepublishOnly": "napi prepublish -t npm --access public",
     "test": "jest",
     "universal": "napi universal",
     "version": "napi version"

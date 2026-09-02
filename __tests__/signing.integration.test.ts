@@ -1,6 +1,8 @@
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { ec as EC } from 'elliptic';
-import { CggmpExecutor, generatePrimes } from '../index';
+import { CggmpExecutor } from '../index';
 import { Envelope } from '../src/proto/cggmp';
 
 const secp256k1 = new EC('secp256k1');
@@ -77,18 +79,23 @@ function runProtocolRounds(
   }
 }
 
+// 사전 생성된 3개 노드용 소수 Fixture (AuxGen 2048비트 RSA 안전 소수 연산 4~6분 소요를 0초로 단축)
+const PRECOMPUTED_PRIMES: Buffer[] = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'fixtures', 'primes.json'), 'utf-8')
+).map((b64: string) => Buffer.from(b64, 'base64'));
+
 describe('2-of-3 Threshold Signing E2E Integration Test', () => {
   const SESSION_ID = 'test-session-2of3';
   const THRESHOLD = 2;
   const PARTIES_COUNT = 3;
-  const timeoutMs = 180000;
+  const timeoutMs = 60000;
   jest.setTimeout(timeoutMs);
 
   let keyShares: { [partyIndex: number]: Buffer } = {};
   let sharedPublicKeyHex = '';
 
   beforeAll(() => {
-    // 2. AuxGen 수행 (노드 0, 1, 2 - 각 노드는 독립적인 safe primes 필요)
+    // 2. AuxGen 수행 (노드 0, 1, 2 - 사전 계산된 safe primes fixture 주입)
     const auxExecutors = [0, 1, 2].map(
       idx => new CggmpExecutor(SESSION_ID, 'exec-aux-1', idx, THRESHOLD, PARTIES_COUNT)
     );
@@ -97,8 +104,8 @@ describe('2-of-3 Threshold Signing E2E Integration Test', () => {
     const initialAuxOutgoings: { [index: number]: Buffer[] } = {};
 
     for (const node of auxNodes) {
-      // 각 노드마다 고유한 소수 쌍을 생성하여 주입
-      const nodePrimes = generatePrimes();
+      // 각 노드마다 고유한 사전 계산 소수 쌍을 주입하여 즉시 실행
+      const nodePrimes = PRECOMPUTED_PRIMES[node.index];
       node.executor.startAuxGenWithPrimes(nodePrimes);
       initialAuxOutgoings[node.index] = node.executor.step([]);
     }
