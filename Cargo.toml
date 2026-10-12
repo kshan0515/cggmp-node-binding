@@ -32,6 +32,8 @@ futures = "0.3"
 serde_repr = "0.1"
 generic-ec = "0.4.1"
 rayon = "1.11.0"
+zeroize = { version = "1.8", features = ["derive"] }
+paillier-zk = { version = "0.7.0-alpha.3", default-features = false }
 
 [build-dependencies]
 napi-build = "2"

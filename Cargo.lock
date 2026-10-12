@@ -91,6 +91,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "paillier-zk",
  "prost",
  "rand",
  "rand_core",
@@ -102,6 +103,7 @@ dependencies = [
  "serde_repr",
  "sha2",
  "tonic-build",
+ "zeroize",
 ]
 
 [[package]]
