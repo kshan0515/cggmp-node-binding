@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-10-12
+
+### Added
+- **N-API Async Worker (`stepAsync` / `step_async`)**:
+  - Implemented `napi::Task` trait (`StepTask`) to execute heavy CGGMP cryptographic operations off the main thread.
+  - Keeps Node.js main event loop completely unblocked while maintaining backwards compatibility with synchronous `step`.
+- **Memory Zeroization & Protection (`destroy` / `isDestroyed`)**:
+  - Added explicit zeroization of keyshare secrets, Paillier primes ($p, q$), session context, and masking values using `zeroize`.
+  - Guard against use-after-free with `is_destroyed: bool` flag throwing `"Executor has already been destroyed"`.
+  - Implemented `Drop` trait to ensure zeroization on object destruction.
+- **Identifiable Abort (`AbortBlame`) Error Parsing**:
+  - Added structured `{ blameParty: number, reason: string }` error reporting and `parseAbortBlameError` helper for slashing malicious nodes.
+- **V8 Heap Isolation via `napi::External` Handles**:
+  - Support passing and keeping `KeyShare` and `AuxInfo` as Rust heap pointers (`External<Arc<Mutex<T>>>`) without exposing sensitive bytes in V8 heap memory.
+- Added comprehensive Rust unit tests and Jest Phase 2 integration tests.
+
 ## [0.1.7] - 2026-09-02
 
 ### Fixed
