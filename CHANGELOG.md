@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] - 2026-10-23
+
+### Changed
+- Explicitly pin Node.js version to `22.23.4` in CI workflow.
+
 ## [0.2.1] - 2026-10-23
 
 ### Changed
