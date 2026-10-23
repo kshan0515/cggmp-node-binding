@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-10-23
+
+### Changed
+- Updated CI Node.js version to `22` and configured napi default node version.
+
 ## [0.2.0] - 2026-10-12
 
 ### Added

@@ -1,6 +1,6 @@
 [package]
 name = "cggmp-node-binding"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Node.js native binding for CGGMP24 MPC ECDSA protocol"
 license = "MIT"
@@ -44,4 +44,4 @@ lto = true
 strip = "symbols"
 
 [package.metadata.napi]
-default-node-version = 20
+default-node-version = 22
